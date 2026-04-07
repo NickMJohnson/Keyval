@@ -1,0 +1,4 @@
+bin/
+*.pb.go
+*.pb.gw.go
+vendor/
