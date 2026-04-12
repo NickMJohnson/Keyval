@@ -15,10 +15,10 @@ func main() {
 	id := flag.String("id", "", "unique node ID (e.g. node1)")
 	addr := flag.String("addr", ":8080", "gRPC listen address")
 	peers := flag.String("peers", "", "comma-separated gRPC addresses of other nodes")
+	dataDir := flag.String("data-dir", "/var/lib/keyval", "directory for persistent state")
 	flag.Parse()
 
 	if *id == "" {
-		// fall back to hostname when running in Docker
 		host, _ := os.Hostname()
 		*id = host
 	}
@@ -33,8 +33,13 @@ func main() {
 		}
 	}
 
+	storage, err := raft.NewStorage(*dataDir)
+	if err != nil {
+		log.Fatalf("init storage: %v", err)
+	}
+
 	applyCh := make(chan raft.ApplyMsg, 256)
-	r := raft.New(*id, peerList, applyCh)
+	r := raft.New(*id, peerList, applyCh, storage)
 	s := store.New(r, applyCh)
 	srv := server.New(s, r, "")
 
