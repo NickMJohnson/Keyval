@@ -32,8 +32,8 @@ type ApplyMsg struct {
 }
 
 type Raft struct {
-	mu   sync.Mutex
-	id   string
+	mu    sync.Mutex
+	id    string
 	peers []string // gRPC addresses of all other nodes
 
 	// persistent state
@@ -54,23 +54,42 @@ type Raft struct {
 	lastSnapshotIndex uint64
 	lastSnapshotTerm  uint64
 
+	storage       *Storage
 	electionTimer *time.Timer
 	applyCh       chan ApplyMsg
 	stopCh        chan struct{}
 }
 
-func New(id string, peers []string, applyCh chan ApplyMsg) *Raft {
+func New(id string, peers []string, applyCh chan ApplyMsg, storage *Storage) *Raft {
+	term, votedFor, log, err := storage.Load()
+	if err != nil {
+		panic("raft: failed to load persisted state: " + err.Error())
+	}
+
 	r := &Raft{
-		id:      id,
-		peers:   peers,
-		log:     NewLog(),
-		state:   Follower,
-		applyCh: applyCh,
-		stopCh:  make(chan struct{}),
+		id:       id,
+		peers:    peers,
+		log:      log,
+		state:    Follower,
+		applyCh:  applyCh,
+		stopCh:   make(chan struct{}),
+		storage:  storage,
+		currentTerm: term,
+		votedFor:    votedFor,
 	}
 	r.resetElectionTimer()
 	go r.run()
 	return r
+}
+
+// persist saves currentTerm, votedFor, and the log to disk.
+// Must be called with r.mu held before responding to any RPC that mutates these.
+func (r *Raft) persist() {
+	if err := r.storage.Save(r.currentTerm, r.votedFor, r.log); err != nil {
+		// Non-fatal log — in production you'd want to crash here.
+		// Continuing risks a safety violation on restart.
+		_ = err
+	}
 }
 
 func (r *Raft) Stop() {
@@ -108,6 +127,7 @@ func (r *Raft) startElection() {
 	r.state = Candidate
 	r.currentTerm++
 	r.votedFor = r.id
+	r.persist()
 	term := r.currentTerm
 	lastIndex := r.log.LastIndex()
 	lastTerm := r.log.LastTerm()
@@ -338,6 +358,7 @@ func (r *Raft) RequestVote(_ context.Context, args *pb.RequestVoteArgs) (*pb.Req
 
 	if !alreadyVoted && logOk {
 		r.votedFor = args.CandidateId
+		r.persist()
 		r.resetElectionTimer()
 		reply.VoteGranted = true
 	}
@@ -388,6 +409,7 @@ func (r *Raft) AppendEntries(_ context.Context, args *pb.AppendEntriesArgs) (*pb
 			r.log.Append(LogEntry{Term: e.Term, Index: e.Index, Command: e.Command})
 		}
 	}
+	r.persist()
 
 	if args.LeaderCommit > r.commitIndex {
 		last := r.log.LastIndex()
