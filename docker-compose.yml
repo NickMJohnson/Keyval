@@ -3,9 +3,11 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    command: ["-id", "node1", "-addr", ":8080", "-peers", "node2:8080,node3:8080"]
+    command: ["-id", "node1", "-addr", ":8080", "-peers", "node2:8080,node3:8080", "-data-dir", "/var/lib/keyval"]
     ports:
       - "8081:8080"
+    volumes:
+      - node1-data:/var/lib/keyval
     networks:
       - raft
 
@@ -13,9 +15,11 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    command: ["-id", "node2", "-addr", ":8080", "-peers", "node1:8080,node3:8080"]
+    command: ["-id", "node2", "-addr", ":8080", "-peers", "node1:8080,node3:8080", "-data-dir", "/var/lib/keyval"]
     ports:
       - "8082:8080"
+    volumes:
+      - node2-data:/var/lib/keyval
     networks:
       - raft
 
@@ -23,11 +27,18 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    command: ["-id", "node3", "-addr", ":8080", "-peers", "node1:8080,node2:8080"]
+    command: ["-id", "node3", "-addr", ":8080", "-peers", "node1:8080,node2:8080", "-data-dir", "/var/lib/keyval"]
     ports:
       - "8083:8080"
+    volumes:
+      - node3-data:/var/lib/keyval
     networks:
       - raft
+
+volumes:
+  node1-data:
+  node2-data:
+  node3-data:
 
 networks:
   raft:
