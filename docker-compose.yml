@@ -1,0 +1,34 @@
+services:
+  node1:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    command: ["-id", "node1", "-addr", ":8080", "-peers", "node2:8080,node3:8080"]
+    ports:
+      - "8081:8080"
+    networks:
+      - raft
+
+  node2:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    command: ["-id", "node2", "-addr", ":8080", "-peers", "node1:8080,node3:8080"]
+    ports:
+      - "8082:8080"
+    networks:
+      - raft
+
+  node3:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    command: ["-id", "node3", "-addr", ":8080", "-peers", "node1:8080,node2:8080"]
+    ports:
+      - "8083:8080"
+    networks:
+      - raft
+
+networks:
+  raft:
+    driver: bridge
