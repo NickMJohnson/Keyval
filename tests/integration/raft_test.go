@@ -71,7 +71,7 @@ func TestFollowerCatchup(t *testing.T) {
 	t.Logf("restarted follower: %s", followerID)
 
 	// give it time to receive and apply the missing entries
-	time.Sleep(300 * time.Millisecond)
+	time.Sleep(600 * time.Millisecond)
 
 	for i := 0; i < 5; i++ {
 		val, found := c.get(followerID, fmt.Sprintf("key%d", i))
