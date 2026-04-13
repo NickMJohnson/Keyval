@@ -25,13 +25,15 @@ type testNode struct {
 }
 
 type testCluster struct {
-	t     *testing.T
-	nodes map[string]*testNode
+	t      *testing.T
+	nodes  map[string]*testNode
+	killed map[string]bool
+	nextID uint64
 }
 
 func newCluster(t *testing.T, n int) *testCluster {
 	t.Helper()
-	c := &testCluster{t: t, nodes: make(map[string]*testNode)}
+	c := &testCluster{t: t, nodes: make(map[string]*testNode), killed: make(map[string]bool)}
 
 	// allocate addresses first so each node knows all peers up front
 	addrs := make(map[string]string, n)
@@ -53,9 +55,11 @@ func newCluster(t *testing.T, n int) *testCluster {
 	}
 
 	t.Cleanup(func() {
-		for _, node := range c.nodes {
-			node.server.Stop()
-			node.raft.Stop()
+		for id, node := range c.nodes {
+			if !c.killed[id] {
+				node.server.Stop()
+				node.raft.Stop()
+			}
 		}
 	})
 	return c
@@ -92,6 +96,7 @@ func (c *testCluster) kill(id string) {
 	}
 	node.server.Stop()
 	node.raft.Stop()
+	c.killed[id] = true
 }
 
 // restart brings a previously killed node back up using its persisted state.
@@ -112,15 +117,16 @@ func (c *testCluster) restart(id string) {
 
 	newNode := startNode(c.t, id, node.addr, peers, node.dataDir)
 	c.nodes[id] = newNode
+	delete(c.killed, id)
 }
 
-// waitForLeader polls until any node reports itself as leader or timeout.
+// waitForLeader polls until any live node reports itself as leader or timeout.
 func (c *testCluster) waitForLeader(timeout time.Duration) *testNode {
 	c.t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		for _, node := range c.nodes {
-			if node.raft.IsLeader() {
+		for id, node := range c.nodes {
+			if !c.killed[id] && node.raft.IsLeader() {
 				return node
 			}
 		}
@@ -130,10 +136,10 @@ func (c *testCluster) waitForLeader(timeout time.Duration) *testNode {
 	return nil
 }
 
-// leader returns whichever node currently believes it is leader, or nil.
+// leader returns whichever live node currently believes it is leader, or nil.
 func (c *testCluster) leader() *testNode {
-	for _, node := range c.nodes {
-		if node.raft.IsLeader() {
+	for id, node := range c.nodes {
+		if !c.killed[id] && node.raft.IsLeader() {
 			return node
 		}
 	}
@@ -142,6 +148,11 @@ func (c *testCluster) leader() *testNode {
 
 // put sends a Put to the given node, following leader redirects once.
 func (c *testCluster) put(targetAddr, key, value string) error {
+	c.nextID++
+	return c.putWithID(targetAddr, key, value, c.nextID)
+}
+
+func (c *testCluster) putWithID(targetAddr, key, value string, reqID uint64) error {
 	conn, err := grpc.NewClient(targetAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
@@ -152,12 +163,12 @@ func (c *testCluster) put(targetAddr, key, value string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
-	resp, err := client.Put(ctx, &kvpb.PutRequest{Key: key, Value: value, ClientId: "test", RequestId: 1})
+	resp, err := client.Put(ctx, &kvpb.PutRequest{Key: key, Value: value, ClientId: "test", RequestId: reqID})
 	if err != nil {
 		return err
 	}
 	if !resp.Success && resp.LeaderAddr != "" {
-		return c.put(resp.LeaderAddr, key, value)
+		return c.putWithID(resp.LeaderAddr, key, value, reqID)
 	}
 	if !resp.Success {
 		return fmt.Errorf("put failed, no leader addr returned")
