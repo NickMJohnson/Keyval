@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/yourusername/keyval/internal/raft"
-	"github.com/yourusername/keyval/internal/server"
-	"github.com/yourusername/keyval/internal/store"
+	"github.com/NickMJohnson/Keyval/internal/raft"
+	"github.com/NickMJohnson/Keyval/internal/server"
+	"github.com/NickMJohnson/Keyval/internal/store"
 )
 
 func main() {

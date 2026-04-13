@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/yourusername/keyval/internal/raft"
+	"github.com/NickMJohnson/Keyval/internal/raft"
 )
 
 type OpType string

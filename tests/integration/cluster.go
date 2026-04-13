@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	kvpb "github.com/yourusername/keyval/proto/kv"
-	"github.com/yourusername/keyval/internal/raft"
-	"github.com/yourusername/keyval/internal/server"
-	"github.com/yourusername/keyval/internal/store"
+	kvpb "github.com/NickMJohnson/Keyval/proto/kv"
+	"github.com/NickMJohnson/Keyval/internal/raft"
+	"github.com/NickMJohnson/Keyval/internal/server"
+	"github.com/NickMJohnson/Keyval/internal/store"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

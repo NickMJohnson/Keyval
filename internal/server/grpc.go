@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"net"
 
-	kvpb "github.com/yourusername/keyval/proto/kv"
-	raftpb "github.com/yourusername/keyval/proto/raft"
+	kvpb "github.com/NickMJohnson/Keyval/proto/kv"
+	raftpb "github.com/NickMJohnson/Keyval/proto/raft"
 
-	"github.com/yourusername/keyval/internal/raft"
-	"github.com/yourusername/keyval/internal/store"
+	"github.com/NickMJohnson/Keyval/internal/raft"
+	"github.com/NickMJohnson/Keyval/internal/store"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
