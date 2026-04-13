@@ -58,6 +58,7 @@ type Raft struct {
 	electionTimer *time.Timer
 	applyCh       chan ApplyMsg
 	stopCh        chan struct{}
+	stopOnce      sync.Once
 }
 
 func New(id string, peers []string, applyCh chan ApplyMsg, storage *Storage) *Raft {
@@ -93,7 +94,12 @@ func (r *Raft) persist() {
 }
 
 func (r *Raft) Stop() {
-	close(r.stopCh)
+	r.stopOnce.Do(func() {
+		r.mu.Lock()
+		r.state = Follower
+		r.mu.Unlock()
+		close(r.stopCh)
+	})
 }
 
 // run is the main event loop.
