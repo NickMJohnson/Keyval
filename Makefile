@@ -11,5 +11,8 @@ build:
 test:
 	go test ./...
 
+test-integration:
+	go test -v -timeout 30s ./tests/integration/...
+
 run:
 	docker-compose up --build
